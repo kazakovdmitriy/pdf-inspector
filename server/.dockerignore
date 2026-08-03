@@ -1,0 +1,32 @@
+# Keep the build context lean — exclude everything the Docker build doesn't need.
+# The Dockerfile only requires: src/, external/, server/, Cargo.toml.
+
+# Rust build artifacts (reused inside the container).
+target/
+**/target/
+
+# VCS and editor metadata.
+.git/
+.gitignore
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Other language bindings / docs / fixtures — not needed for the server image.
+napi/
+wasm/
+site/
+docs/
+tests/
+examples/
+scripts/
+.github/
+*.md
+!server/README.md
+LICENSE
+SECURITY.md
+CLAUDE.md
+AGENTS.md
+pdf_inspector.pyi
+pyproject.toml

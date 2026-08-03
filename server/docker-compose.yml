@@ -1,0 +1,31 @@
+# Run with:  docker compose -f server/docker-compose.yml up --build
+#
+# Builds the image from the repo root (build context must include the library
+# crate, since the server depends on it by relative path) and exposes the API
+# on http://localhost:3000.
+
+services:
+  pdf-inspector-api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    image: pdf-inspector-api:latest
+    container_name: pdf-inspector-api
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      RUST_LOG: "info"
+      # Max upload size in MiB.
+      MAX_BODY_MB: "100"
+      # Max concurrent PDFs processed. 0 = auto (number of CPUs).
+      MAX_CONCURRENT: "0"
+      # How long a request waits for a free processing slot (seconds).
+      QUEUE_TIMEOUT_SECS: "60"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

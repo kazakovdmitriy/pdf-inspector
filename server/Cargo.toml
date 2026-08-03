@@ -1,0 +1,37 @@
+[package]
+name = "pdf-inspector-api"
+version = "0.1.0"
+edition = "2021"
+description = "HTTP REST API server for the pdf-inspector library (PDF classification & Markdown extraction)"
+license = "MIT"
+
+[[bin]]
+name = "pdf-inspector-api"
+path = "src/main.rs"
+
+[dependencies]
+pdf-inspector = { path = ".." }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Web framework
+axum = { version = "0.8", features = ["multipart", "json"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace", "limit", "cors"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bytes = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Profile optimized for a long-running server binary: smaller image, faster
+# runtime, but still builds in reasonable time (thin LTO).
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"

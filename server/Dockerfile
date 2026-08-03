@@ -1,44 +1,30 @@
 # Multi-stage build for the pdf-inspector HTTP API.
 #
-#   docker build -t pdf-inspector-api ./server
-#   docker run -p 3000:3000 pdf-inspector-api
-#
-# The build context is the repo root (../), because the server crate depends
-# on the library crate via a relative path. Build from the repository root:
+# Build from the repository root (the context must include both the library
+# crate `src/` and the `server/` crate):
 #
 #   docker build -f server/Dockerfile -t pdf-inspector-api .
+#
+# Or via compose (see server/docker-compose.yml / stacks/pdf-api/compose.yaml).
 
 # ---- Stage 1: build the release binary -------------------------------------
 FROM rust:1-bookworm AS builder
 
-# Pre-create the project layout so dependencies cache independently of source.
 WORKDIR /build
 
-# Copy manifests first to cache dependency compilation.
-COPY Cargo.toml ./
-COPY server/Cargo.toml ./server/Cargo.toml
+# Copy the entire repository (library + server). The library is a path
+# dependency of the server crate, so both must be present.
+COPY . .
 
-# Create a stub so cargo can resolve the workspace before copying sources.
-RUN mkdir -p src && echo "fn main() {}" > src/main.rs
-
-# Build dependencies only. This layer is cached until a manifest changes.
-RUN cargo build --release --manifest-path server/Cargo.toml || true
-
-# Now copy the real source (library + server) and build the actual binary.
-COPY src ./src
-COPY external ./external
-COPY server/src ./server/src
-
-# Touching forces a rebuild of the binary now that real sources are in place.
-RUN touch server/src/main.rs
+# Build the release binary. Dependencies are compiled as part of this step;
+# Docker layer caching still helps across rebuilds when source is unchanged.
 RUN cargo build --release --manifest-path server/Cargo.toml
 
 # ---- Stage 2: minimal runtime image ----------------------------------------
 FROM debian:bookworm-slim AS runtime
 
-# ca-certificates: any TLS for outbound calls if added later.
-# curl: used by HEALTHCHECK. libssl via openssl is not required — the binary
-# is pure Rust and statically links its TLS stack.
+# ca-certificates: for any outbound TLS added later.
+# curl: used by HEALTHCHECK.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
@@ -54,14 +40,14 @@ USER api
 
 EXPOSE 3000
 
-# Env defaults; override at `docker run -e ...`.
+# Env defaults; override at `docker run -e ...` or in compose.
 ENV PORT=3000 \
     RUST_LOG=info \
     MAX_BODY_MB=100 \
     MAX_CONCURRENT=0 \
     QUEUE_TIMEOUT_SECS=60
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -sf http://127.0.0.1:${PORT}/health || exit 1
 
 ENTRYPOINT ["pdf-inspector-api"]

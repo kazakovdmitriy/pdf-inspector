@@ -33,8 +33,10 @@ RUN apt-get update \
 RUN useradd --create-home --uid 10001 api
 WORKDIR /home/api
 
-# Copy the compiled binary out of the builder stage.
-COPY --from=builder /build/target/release/pdf-inspector-api /usr/local/bin/pdf-inspector-api
+# Copy the compiled binary out of the builder stage. cargo emits the binary
+# into <manifest_dir>/target when invoked with --manifest-path, i.e.
+# /build/server/target/release/ here.
+COPY --from=builder /build/server/target/release/pdf-inspector-api /usr/local/bin/pdf-inspector-api
 
 USER api
 

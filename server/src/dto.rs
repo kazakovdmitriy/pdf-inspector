@@ -146,6 +146,6 @@ pub struct PdfUploadBody {
     /// The PDF file. The field name must be `file`
     /// (e.g. `curl -F file=@document.pdf`).
     #[allow(dead_code)]
-    #[schema(content_media_type = "application/octet-stream")]
+    #[schema(value_type = String, format = Binary)]
     pub file: Vec<u8>,
 }

@@ -29,6 +29,10 @@ bytes = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# OpenAPI documentation + Scalar UI (axum_extras enables IntoParams derive)
+utoipa = { version = "5.5", features = ["axum_extras"] }
+utoipa-scalar = { version = "0.3", features = ["axum"] }
+
 # Profile optimized for a long-running server binary: smaller image, faster
 # runtime, but still builds in reasonable time (thin LTO).
 [profile.release]

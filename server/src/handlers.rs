@@ -10,12 +10,13 @@ use serde::Deserialize;
 use serde_json::json;
 use tracing::{debug, warn};
 
-use crate::dto::{ConvertResponse, DetectResponse};
+use crate::dto::{ConvertResponse, DetectResponse, ErrorResponse, PdfUploadBody};
 use crate::error::ApiError;
 use crate::state::AppState;
 
 /// Query parameters for the conversion endpoint.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct ConvertQuery {
     /// Pages to extract, 1-indexed, e.g. `1,3,5-10`. Omit for all pages.
     pub select_pages: Option<String>,
@@ -26,12 +27,29 @@ pub struct ConvertQuery {
 }
 
 /// Query parameters for the detect endpoint.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct DetectQuery {
+    /// Password for an encrypted PDF.
     pub password: Option<String>,
 }
 
 /// `POST /convert` — classify the PDF and extract Markdown.
+#[utoipa::path(
+    post,
+    path = "/convert",
+    tag = "pdf",
+    request_body(content = PdfUploadBody, content_type = "multipart/form-data", description = "PDF file uploaded as multipart field `file`"),
+    params(ConvertQuery),
+    responses(
+        (status = 200, description = "PDF processed; Markdown returned in `markdown` (null when OCR is needed).", body = ConvertResponse),
+        (status = 400, description = "`missing_file`, `empty_upload`, or `not_a_pdf`.", body = ErrorResponse),
+        (status = 413, description = "Upload exceeds `MAX_BODY_MB`.", body = ErrorResponse),
+        (status = 422, description = "`invalid_structure`, `parse_error`, or `encrypted` (supply `password`).", body = ErrorResponse),
+        (status = 500, description = "`internal_error`.", body = ErrorResponse),
+        (status = 503, description = "`server_busy` — at capacity, retry later.", body = ErrorResponse),
+    )
+)]
 pub async fn convert(
     State(state): State<AppState>,
     Query(query): Query<ConvertQuery>,
@@ -46,6 +64,21 @@ pub async fn convert(
 }
 
 /// `POST /detect` — fast classification only (no extraction / markdown).
+#[utoipa::path(
+    post,
+    path = "/detect",
+    tag = "pdf",
+    request_body(content = PdfUploadBody, content_type = "multipart/form-data", description = "PDF file uploaded as multipart field `file`"),
+    params(DetectQuery),
+    responses(
+        (status = 200, description = "Classification result (no Markdown).", body = DetectResponse),
+        (status = 400, description = "`missing_file`, `empty_upload`, or `not_a_pdf`.", body = ErrorResponse),
+        (status = 413, description = "Upload exceeds `MAX_BODY_MB`.", body = ErrorResponse),
+        (status = 422, description = "`invalid_structure`, `parse_error`, or `encrypted` (supply `password`).", body = ErrorResponse),
+        (status = 500, description = "`internal_error`.", body = ErrorResponse),
+        (status = 503, description = "`server_busy` — at capacity, retry later.", body = ErrorResponse),
+    )
+)]
 pub async fn detect(
     State(state): State<AppState>,
     Query(query): Query<DetectQuery>,
@@ -60,6 +93,15 @@ pub async fn detect(
 }
 
 /// `GET /health` — liveness/readiness probe for orchestrators.
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "system",
+    responses(
+        (status = 200, description = "Service is up.", content_type = "application/json",
+         example = json!({"status": "ok"})),
+    )
+)]
 pub async fn health() -> impl IntoResponse {
     (StatusCode::OK, Json(json!({ "status": "ok" })))
 }

@@ -25,6 +25,12 @@ Single self-contained binary, pure Rust, no external services.
 
 The PDF is sent as a multipart form field named `file`.
 
+## Interactive API docs
+
+An interactive Scalar API reference is served at **`GET /docs`** (OpenAPI 3.1):
+browse endpoints, inspect request/response schemas, and send live test requests
+from the browser.
+
 ## Run locally
 
 ```bash

@@ -6,6 +6,7 @@
 mod dto;
 mod error;
 mod handlers;
+mod openapi;
 mod state;
 
 use std::net::SocketAddr;
@@ -17,7 +18,10 @@ use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
+use utoipa::OpenApi;
+use utoipa_scalar::{Scalar, Servable};
 
+use openapi::ApiDoc;
 use state::{AppState, Config};
 
 #[tokio::main]
@@ -40,6 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         queue_timeout_secs = state.config.queue_timeout.as_secs(),
         "starting pdf-inspector-api"
     );
+    info!("API docs (Scalar): http://{addr}/docs");
 
     let app = build_router(state.clone());
 
@@ -62,6 +67,8 @@ fn build_router(state: AppState) -> Router {
         .route("/detect", post(handlers::detect))
         .route("/health", get(handlers::health))
         .route("/", get(handlers::health))
+        // Scalar API reference at /docs and raw OpenAPI spec at /api-docs/openapi.json
+        .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(body_limit)
         .layer(CorsLayer::new()
             .allow_methods([Method::GET, Method::POST])

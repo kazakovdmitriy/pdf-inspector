@@ -10,7 +10,7 @@ use pdf_inspector::{LayoutComplexity, PageOcrReasons, PdfProcessResult, PdfType}
 use serde::Serialize;
 
 /// One row of `pages_needing_ocr` context: which page and why OCR is advised.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct PageOcrReasonsDto {
     /// 1-indexed page number.
     pub page: u32,
@@ -19,7 +19,7 @@ pub struct PageOcrReasonsDto {
 }
 
 /// Layout complexity summary.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct LayoutComplexityDto {
     pub is_complex: bool,
     /// 1-indexed pages containing detected tables.
@@ -59,7 +59,7 @@ pub fn pdf_type_str(t: PdfType) -> &'static str {
 }
 
 /// Response for `POST /convert`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ConvertResponse {
     pub pdf_type: &'static str,
     /// Extracted Markdown. `None` when the PDF needs OCR (scanned/image-based).
@@ -76,7 +76,7 @@ pub struct ConvertResponse {
 }
 
 /// Response for `POST /detect` — classification only, no markdown.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct DetectResponse {
     pub pdf_type: &'static str,
     pub page_count: u32,
@@ -123,4 +123,29 @@ impl From<PdfProcessResult> for DetectResponse {
             layout: r.layout.into(),
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Types used only for OpenAPI documentation (not by the request handlers).
+// ---------------------------------------------------------------------------
+
+/// JSON error body returned on non-2xx responses.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ErrorResponse {
+    /// Machine-readable error code, e.g. `missing_file`, `encrypted`.
+    pub error: String,
+    /// Human-readable explanation of the failure.
+    pub message: String,
+}
+
+/// Documentation-only shape for the multipart upload. The real handlers read
+/// the request with `axum::extract::Multipart`; this struct exists purely so
+/// the OpenAPI spec can describe the expected form field.
+#[derive(Debug, utoipa::ToSchema)]
+pub struct PdfUploadBody {
+    /// The PDF file. The field name must be `file`
+    /// (e.g. `curl -F file=@document.pdf`).
+    #[allow(dead_code)]
+    #[schema(content_media_type = "application/octet-stream")]
+    pub file: Vec<u8>,
 }
